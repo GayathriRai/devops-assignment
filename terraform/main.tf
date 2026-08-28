@@ -108,6 +108,39 @@ resource "aws_route_table_association" "public" {
 
 
 # ============================================================
+# NAT Gateway Elastic IP
+# ============================================================
+
+resource "aws_eip" "nat" {
+  domain = "vpc"
+
+  tags = {
+    Name        = "${var.project_name}-nat-eip"
+    Environment = var.environment
+  }
+}
+
+
+# ============================================================
+# NAT Gateway
+# ============================================================
+
+resource "aws_nat_gateway" "main" {
+  allocation_id = aws_eip.nat.id
+  subnet_id     = aws_subnet.public[0].id
+
+  depends_on = [
+    aws_internet_gateway.main
+  ]
+
+  tags = {
+    Name        = "${var.project_name}-nat"
+    Environment = var.environment
+  }
+}
+
+
+# ============================================================
 # Private Route Table
 # ============================================================
 
@@ -118,6 +151,17 @@ resource "aws_route_table" "private" {
     Name        = "${var.project_name}-private-rt"
     Environment = var.environment
   }
+}
+
+
+# ============================================================
+# Private Route Table - NAT Route
+# ============================================================
+
+resource "aws_route" "private_nat" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.main.id
 }
 
 
@@ -244,6 +288,7 @@ resource "aws_db_subnet_group" "postgres" {
   }
 }
 
+
 # ============================================================
 # PostgreSQL RDS
 # ============================================================
@@ -281,4 +326,4 @@ resource "aws_db_instance" "postgres" {
     Name        = "${var.project_name}-postgres"
     Environment = var.environment
   }
-}
+}   
