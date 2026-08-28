@@ -18,6 +18,7 @@ def get_db_connection():
         database=os.getenv("DB_NAME", "tododb"),
         user=os.getenv("DB_USER", "todo"),
         password=os.getenv("DB_PASSWORD", "todo_password"),
+        sslmode=os.getenv("DB_SSLMODE", "require"),
     )
 
 

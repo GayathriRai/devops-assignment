@@ -1,32 +1,5 @@
 services:
 
-  postgres:
-    image: postgres:16-alpine
-
-    container_name: todo-postgres
-
-    restart: unless-stopped
-
-    environment:
-      POSTGRES_DB: tododb
-      POSTGRES_USER: todo
-      POSTGRES_PASSWORD: todo_password
-
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-
-    healthcheck:
-      test:
-        [
-          "CMD-SHELL",
-          "pg_isready -U todo -d tododb"
-        ]
-
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-
   backend:
     build:
       context: ./app/backend
@@ -36,19 +9,15 @@ services:
     restart: unless-stopped
 
     environment:
-      DB_HOST: postgres
+      DB_HOST: todo-app-postgres.cvgmaqao8rbm.ap-south-1.rds.amazonaws.com
       DB_PORT: 5432
       DB_NAME: tododb
-      DB_USER: todo
-      DB_PASSWORD: todo_password
-
-    depends_on:
-      postgres:
-        condition: service_healthy
+      DB_USER: todo_user
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_SSLMODE: require
 
     expose:
       - "5000"
-
 
   frontend:
     image: nginx:alpine
@@ -66,8 +35,3 @@ services:
 
     depends_on:
       - backend
-
-
-volumes:
-
-  postgres_data:
