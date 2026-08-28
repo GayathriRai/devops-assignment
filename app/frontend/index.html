@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>TaskFlow - Todo Manager</title>
+
+    <link
+        rel="stylesheet"
+        href="style.css"
+    >
+</head>
+
+<body>
+
+    <div class="background-glow glow-one"></div>
+    <div class="background-glow glow-two"></div>
+
+    <main class="container">
+
+        <header class="header">
+
+            <div>
+                <div class="brand">
+                    <span class="brand-icon">✓</span>
+                    <span>TaskFlow</span>
+                </div>
+
+                <h1>
+                    Organize your day.
+                    <span>Get things done.</span>
+                </h1>
+
+                <p class="subtitle">
+                    A simple and beautiful task manager
+                    powered by Flask and PostgreSQL.
+                </p>
+            </div>
+
+            <div class="status-card">
+                <span class="status-dot"></span>
+                <span id="connectionStatus">
+                    Checking connection...
+                </span>
+            </div>
+
+        </header>
+
+
+        <section class="stats">
+
+            <div class="stat-card">
+                <span class="stat-label">Total Tasks</span>
+                <strong id="totalTasks">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Completed</span>
+                <strong id="completedTasks">0</strong>
+            </div>
+
+            <div class="stat-card">
+                <span class="stat-label">Remaining</span>
+                <strong id="remainingTasks">0</strong>
+            </div>
+
+        </section>
+
+
+        <section class="todo-layout">
+
+            <div class="add-card">
+
+                <div class="section-title">
+                    <div>
+                        <h2>Create a task</h2>
+                        <p>Add something you want to accomplish.</p>
+                    </div>
+                </div>
+
+                <form id="todoForm">
+
+                    <label for="title">
+                        Task title
+                    </label>
+
+                    <input
+                        id="title"
+                        type="text"
+                        placeholder="e.g. Complete Terraform module"
+                        maxlength="255"
+                        required
+                    >
+
+                    <label for="description">
+                        Description
+                    </label>
+
+                    <textarea
+                        id="description"
+                        placeholder="Add some details..."
+                        rows="5"
+                    ></textarea>
+
+                    <button
+                        class="primary-button"
+                        type="submit"
+                    >
+                        <span>＋</span>
+                        Add Task
+                    </button>
+
+                </form>
+
+            </div>
+
+
+            <div class="tasks-card">
+
+                <div class="tasks-header">
+
+                    <div>
+                        <h2>My Tasks</h2>
+                        <p id="taskSummary">
+                            Loading tasks...
+                        </p>
+                    </div>
+
+                    <button
+                        class="refresh-button"
+                        id="refreshButton"
+                        title="Refresh tasks"
+                    >
+                        ↻
+                    </button>
+
+                </div>
+
+                <div
+                    id="todoList"
+                    class="todo-list"
+                >
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <footer>
+            <span>TaskFlow</span>
+            <span>•</span>
+            <span>Flask API</span>
+            <span>•</span>
+            <span>PostgreSQL</span>
+        </footer>
+
+    </main>
+
+
+    <div
+        id="toast"
+        class="toast"
+    >
+    </div>
+
+    <script src="app.js"></script>
+
+</body>
+
+</html>
