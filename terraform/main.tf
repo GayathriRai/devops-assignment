@@ -8,6 +8,44 @@ data "aws_availability_zones" "available" {
 
 
 # ============================================================
+# Amazon Linux 2023 AMI
+# ============================================================
+
+data "aws_ami" "amazon_linux" {
+  most_recent = true
+
+  owners = ["137112412989"]
+
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*-x86_64"]
+  }
+
+  filter {
+    name   = "state"
+    values = ["available"]
+  }
+}
+
+
+# ============================================================
+# Existing EC2 Key Pair
+# ============================================================
+# This key pair already exists in AWS.
+# Key pair name: todo-app-ec2-key
+#
+# The private key file is:
+# /home/gayathri/Downloads/awsserver.pem
+#
+# Terraform does NOT upload the private key.
+# It only tells EC2 to use the existing AWS key pair.
+
+data "aws_key_pair" "ec2" {
+  key_name = "todo-app-ec2-key"
+}
+
+
+# ============================================================
 # VPC
 # ============================================================
 
@@ -210,12 +248,12 @@ resource "aws_security_group" "alb" {
 
 
 # ============================================================
-# Security Group - Application / EC2
+# Security Group - Application / ALB Target
 # ============================================================
 
 resource "aws_security_group" "app" {
   name        = "${var.project_name}-app-sg"
-  description = "Security group for application EC2"
+  description = "Security group for application EC2 behind ALB"
   vpc_id      = aws_vpc.main.id
 
   ingress {
@@ -251,11 +289,11 @@ resource "aws_security_group" "database" {
   vpc_id      = aws_vpc.main.id
 
   ingress {
-    description     = "Allow PostgreSQL from application"
+    description     = "Allow PostgreSQL from application EC2"
     from_port       = 5432
     to_port         = 5432
     protocol        = "tcp"
-    security_groups = [aws_security_group.app.id]
+    security_groups = [aws_security_group.ec2.id]
   }
 
   egress {
@@ -268,6 +306,46 @@ resource "aws_security_group" "database" {
 
   tags = {
     Name        = "${var.project_name}-db-sg"
+    Environment = var.environment
+  }
+}
+
+
+# ============================================================
+# Security Group - EC2 Application Server
+# ============================================================
+
+resource "aws_security_group" "ec2" {
+  name        = "${var.project_name}-ec2-sg"
+  description = "Security group for Todo application EC2"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    description = "Allow SSH"
+    from_port   = 22
+    to_port     = 22
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
+    description = "Allow Todo application"
+    from_port   = 8080
+    to_port     = 8080
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    description = "Allow all outbound traffic"
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  tags = {
+    Name        = "${var.project_name}-ec2-sg"
     Environment = var.environment
   }
 }
@@ -326,4 +404,46 @@ resource "aws_db_instance" "postgres" {
     Name        = "${var.project_name}-postgres"
     Environment = var.environment
   }
-}   
+}
+
+
+# ============================================================
+# EC2 - Todo Application Server
+# ============================================================
+
+resource "aws_instance" "app" {
+  ami           = data.aws_ami.amazon_linux.id
+  instance_type = "t3.micro"
+
+  subnet_id = aws_subnet.public[0].id
+
+  # Use the EXISTING AWS key pair
+  key_name = data.aws_key_pair.ec2.key_name
+
+  vpc_security_group_ids = [
+    aws_security_group.ec2.id
+  ]
+
+  associate_public_ip_address = true
+
+  user_data = <<-EOF
+              #!/bin/bash
+
+              dnf update -y
+
+              dnf install -y docker git
+
+              systemctl enable docker
+              systemctl start docker
+
+              usermod -aG docker ec2-user
+
+              mkdir -p /opt/todo-app
+
+              EOF
+
+  tags = {
+    Name        = "${var.project_name}-ec2"
+    Environment = var.environment
+  }
+}

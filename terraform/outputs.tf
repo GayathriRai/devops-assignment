@@ -37,3 +37,23 @@ output "rds_port" {
   description = "PostgreSQL RDS port"
   value       = aws_db_instance.postgres.port
 }
+
+output "ec2_instance_id" {
+  description = "Todo application EC2 instance ID"
+  value       = aws_instance.app.id
+}
+
+output "ec2_public_ip" {
+  description = "Todo application EC2 public IP"
+  value       = aws_instance.app.public_ip
+}
+
+output "ec2_public_dns" {
+  description = "Todo application EC2 public DNS"
+  value       = aws_instance.app.public_dns
+}
+
+output "ec2_security_group_id" {
+  description = "Security group ID for Todo application EC2"
+  value       = aws_security_group.ec2.id
+}
