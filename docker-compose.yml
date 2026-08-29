@@ -1,8 +1,7 @@
 services:
 
   backend:
-    build:
-      context: ./app/backend
+    image: gayathrirai/todo-app-backend-new:latest
 
     container_name: todo-backend
 
@@ -18,6 +17,7 @@ services:
 
     expose:
       - "5000"
+
 
   frontend:
     image: nginx:alpine
