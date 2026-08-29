@@ -57,3 +57,9 @@ output "ec2_security_group_id" {
   description = "Security group ID for Todo application EC2"
   value       = aws_security_group.ec2.id
 }
+
+output "alb_dns_name" {
+  description = "Application Load Balancer DNS name"
+  value       = aws_lb.app.dns_name
+}
+
