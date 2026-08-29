@@ -9,3 +9,4 @@ terraform/crash.log
 terraform/crash.*.log
 .env
 .env
+.env
