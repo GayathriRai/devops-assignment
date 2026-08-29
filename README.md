@@ -1,37 +1,28 @@
-# devops-assignment
+# DevOps Assignment – Todo Application
 
-Todo Application – AWS DevOps Assignment
-
-1. Project Overview
+## Project Overview
 
 This project demonstrates an end-to-end DevOps implementation for a Todo application using AWS, Terraform, Docker, Jenkins, PostgreSQL RDS, Amazon CloudWatch, and Amazon SNS.
 
-The application consists of:
+### Technology Stack
 
-Frontend: Nginx serving the Todo UI
+- Frontend: Nginx
+- Backend: Flask + Gunicorn
+- Database: PostgreSQL on Amazon RDS
+- Infrastructure: AWS + Terraform
+- CI/CD: Jenkins
+- Containerization: Docker / Docker Compose
+- Registry: Docker Hub
+- Monitoring: Amazon CloudWatch
+- Logging: CloudWatch Logs
+- Alerting: CloudWatch Alarms + Amazon SNS
+- Backup: Amazon RDS automated backups
 
-Backend: Flask application running with Gunicorn
+The application was successfully deployed and verified on AWS.
 
-Database: PostgreSQL on Amazon RDS
+## Architecture
 
-Infrastructure: AWS resources provisioned using Terraform
-
-CI/CD: Jenkins
-
-Containerization: Docker / Docker Compose
-
-Monitoring: Amazon CloudWatch
-
-Logging: CloudWatch Logs
-
-Alerting: CloudWatch Alarms + Amazon SNS
-
-Backup: Amazon RDS automated backups
-
-The application was tested successfully on the EC2 instance and the database connection was verified.
-
-2. Architecture
-
+```text
                          GitHub
                            |
                            v
@@ -43,40 +34,46 @@ The application was tested successfully on the EC2 instance and the database con
                     Docker Registry
                            |
                            v
-                         EC2
+                          EC2
                   +-------------------+
                   |   Docker Compose  |
                   |                   |
-User ---> Port 8080 ---> Nginx       |
-                  |       Frontend    |
-                  |          |        |
-                  |          v        |
-                  |     Flask Backend |
-                  |       :5000       |
-                  +---------|---------+
-                            |
-                            v
-                     Amazon RDS
-                    PostgreSQL DB
+User ---> ALB ---> Nginx             |
+          :80      Frontend           |
+                     |                |
+                     v                |
+                 Flask Backend        |
+                  :5000               |
+                     |                |
+                     v                |
+                PostgreSQL RDS        |
+                  :5432               |
+                  +-------------------+
 
 Monitoring:
 EC2 / Docker / Application / RDS
               |
               v
-        CloudWatch
-              |
-        +-----+------+
-        |            |
-     Dashboards    Alarms
+        Amazon CloudWatch
+          |           |
+     Dashboards      Alarms
                        |
                        v
-                      SNS
+                     SNS
                        |
                        v
                      Email
+```
 
-3. Repository Structure
+## Repository
 
+GitHub repository:
+
+`https://github.com/GayathriRai/devops-assignment`
+
+### Repository Structure
+
+```text
 devops-assignment/
 ├── README.md
 ├── docker-compose.yml
@@ -93,400 +90,505 @@ devops-assignment/
     ├── main.tf
     ├── variables.tf
     ├── outputs.tf
-    └── ...
+    ├── providers.tf
+    └── awsserver.pub
+```
 
-The GitHub repository used for this assignment is:
+## AWS Infrastructure
 
-https://github.com/GayathriRai/devops-assignment
+Terraform provisions and manages:
 
-4. Infrastructure Provisioning
+- VPC
+- Internet Gateway
+- Public subnets
+- Private subnets
+- Public and private route tables
+- NAT Gateway
+- Elastic IP
+- EC2 instance
+- Application Load Balancer
+- ALB target group
+- ALB listener
+- Security groups
+- Amazon RDS PostgreSQL
+- RDS subnet group
 
-Terraform was used to provision the AWS infrastructure.
+### Network Design
 
-The infrastructure includes:
+```text
+Internet
+   |
+   v
+Application Load Balancer
+   |
+   v
+EC2 Application Server
+   |
+   +---- Nginx Frontend
+   |
+   +---- Flask/Gunicorn Backend
+              |
+              v
+        PostgreSQL RDS
+```
 
-VPC
+The EC2 instance is in a public subnet. RDS is deployed in private subnets and is not publicly accessible.
 
-Public and private subnets
+## Terraform
 
-EC2 instance for application hosting
+Terraform is used as Infrastructure as Code.
 
-Amazon RDS PostgreSQL
+### Workflow
 
-Security groups
-
-Load-balancing infrastructure as implemented in the Terraform configuration
-
-Terraform variables
-
-Terraform outputs
-
-Terraform state management
-
-Terraform configuration was formatted and applied successfully.
-
-Typical Terraform workflow:
-
+```bash
 terraform init
 terraform fmt
 terraform validate
 terraform plan
 terraform apply
+```
 
-The infrastructure was verified after provisioning.
+### Verify Resources
 
-5. Application
+```bash
+terraform state list
+terraform output
+```
 
-Frontend
+### ALB DNS
 
-The frontend is served using Nginx.
+```bash
+terraform output -raw alb_dns_name
+```
 
-The frontend is exposed through:
+Example:
 
-http://<EC2_PUBLIC_IP>:8080/
+```text
+todo-app-alb-1415922835.ap-south-1.elb.amazonaws.com
+```
 
-Nginx listens internally on port 80 and Docker maps it to EC2 port 8080:
+### ALB Target Health
 
-8080:80
+The target group uses port 8080 and checks:
 
-Backend
+```text
+/api/health
+```
 
-The backend is a Flask API running with Gunicorn on port 5000.
+The EC2 target was successfully verified as:
 
-Available API endpoints include:
+```text
+State: healthy
+Port: 8080
+```
 
+## Application
+
+The application contains an Nginx frontend and Flask backend.
+
+### Frontend
+
+Nginx serves the Todo UI and proxies API requests to the Flask backend.
+
+### Backend
+
+The Flask application runs with Gunicorn on port 5000.
+
+### API Endpoints
+
+```text
 GET    /api/health
 GET    /api/todos
 POST   /api/todos
 PUT    /api/todos/<todo_id>
 DELETE /api/todos/<todo_id>
+```
 
-Database
+## Database
 
-The application uses PostgreSQL hosted on Amazon RDS.
+PostgreSQL is hosted on Amazon RDS.
 
-The backend receives database configuration through environment variables:
+### Environment Variables
 
+```text
 DB_HOST
 DB_PORT
 DB_NAME
 DB_USER
 DB_PASSWORD
 DB_SSLMODE
+```
 
-The database connection uses SSL:
+SSL is enabled:
 
+```text
 DB_SSLMODE=require
+```
 
-The database password is supplied through an environment variable rather than being hard-coded into docker-compose.yml.
+The database password is supplied through an environment variable and is not hard-coded in Docker Compose.
 
-6. Docker
+### RDS Configuration
 
-Docker was used to containerize the application.
+```text
+Engine: PostgreSQL
+Version: 16
+Instance Class: db.t4g.micro
+Storage: 20 GB
+Maximum Storage: 50 GB
+Storage Type: gp3
+Encryption: Enabled
+Publicly Accessible: No
+Port: 5432
+Backup Retention: 1 day
+```
 
-The current Compose deployment contains:
+## Docker
 
-backend
-frontend
-
-The backend uses the published Docker image:
-
-gayathrirai/todo-app-backend-new:latest
-
-The frontend uses:
-
-nginx:alpine
-
-Docker Compose configuration:
-
-services:
-
-  backend:
-    image: gayathrirai/todo-app-backend-new:latest
-    container_name: todo-backend
-    restart: unless-stopped
-    environment:
-      DB_HOST: todo-app-postgres.cvgmaqao8rbm.ap-south-1.rds.amazonaws.com
-      DB_PORT: 5432
-      DB_NAME: tododb
-      DB_USER: todo_user
-      DB_PASSWORD: ${DB_PASSWORD}
-      DB_SSLMODE: require
-    expose:
-      - "5000"
-
-  frontend:
-    image: nginx:alpine
-    container_name: todo-frontend
-    restart: unless-stopped
-    ports:
-      - "8080:80"
-    volumes:
-      - ./app/frontend:/usr/share/nginx/html:ro
-      - ./app/frontend/nginx.conf:/etc/nginx/conf.d/default.conf:ro
-    depends_on:
-      - backend
-
-The containers were verified with:
-
-docker ps
+Docker is used to containerize the application.
 
 Expected containers:
 
+```text
 todo-frontend
 todo-backend
+```
 
-7. Application Verification
+### Backend Image
 
-The application was tested directly on the EC2 instance.
+```text
+gayathrirai/todo-app-backend-new:latest
+```
 
-Frontend:
+### Frontend Image
 
-curl -i http://localhost:8080/
+```text
+nginx:alpine
+```
 
-Result:
+### Verify Containers
 
+```bash
+docker ps
+```
+
+### View Logs
+
+```bash
+docker logs --tail 20 todo-frontend
+docker logs --tail 20 todo-backend
+```
+
+## Application Verification
+
+### Frontend
+
+```bash
+curl -i http://<ALB_DNS_NAME>/
+```
+
+Expected:
+
+```text
 HTTP/1.1 200 OK
+```
 
-Health endpoint:
+### Health Endpoint
 
-curl -i http://localhost:8080/api/health
+```bash
+curl -i http://<ALB_DNS_NAME>/api/health
+```
 
-Result:
+Expected:
 
+```json
 {
   "database": "connected",
   "status": "healthy"
 }
+```
 
-Todo API:
+### Todo API
 
-curl -i http://localhost:8080/api/todos
+```bash
+curl -i http://<ALB_DNS_NAME>/api/todos
+```
 
-Result:
+Expected:
 
+```text
 HTTP/1.1 200 OK
+```
 
-The API returned Todo records from PostgreSQL.
+End-to-end flow:
 
-Therefore:
+```text
+User
+ |
+ v
+ALB
+ |
+ v
+Nginx
+ |
+ v
+Flask / Gunicorn
+ |
+ v
+PostgreSQL RDS
+```
 
-Frontend -> Nginx -> Flask -> PostgreSQL
+## Application Load Balancer
 
-was successfully verified.
+An Application Load Balancer was implemented using Terraform.
 
-8. CI/CD with Jenkins
+### ALB
 
-Jenkins was selected as the CI/CD platform.
+```text
+Name: todo-app-alb
+Protocol: HTTP
+Port: 80
+```
 
-The Jenkins pipeline was configured to automate the application build and deployment process.
+### Target Group
 
-The pipeline performs the required CI/CD activities implemented for this assignment, including:
+```text
+Name: todo-app-tg
+Protocol: HTTP
+Port: 8080
+Target Type: Instance
+```
 
-Source code retrieval from GitHub
+### Health Check
 
-Application build
+```text
+Path: /api/health
+Port: 8080
+Protocol: HTTP
+Expected Status: 200
+Healthy Threshold: 2
+Unhealthy Threshold: 3
+Timeout: 5 seconds
+Interval: 30 seconds
+```
 
-Docker image build
+The EC2 target was verified as healthy.
 
-Docker image publishing
+## CI/CD with Jenkins
 
-Deployment to EC2
+Jenkins automates the application delivery process.
 
-Application verification
+### Pipeline
 
-The Jenkins build was successfully executed.
+```text
+Developer
+    |
+    v
+GitHub
+    |
+    v
+Jenkins
+    |
+    +--> Checkout
+    |
+    +--> Build
+    |
+    +--> Test
+    |
+    +--> Docker Build
+    |
+    +--> Docker Push
+    |
+    +--> Deploy to EC2
+    |
+    +--> Verify
+    |
+    v
+Running Application
+```
 
-A Groovy syntax issue was encountered during pipeline development:
+The Jenkins build completed successfully:
 
+```text
+SUCCESS
+```
+
+A Jenkins Groovy syntax error was encountered during development:
+
+```text
 MultipleCompilationErrorsException
 expecting '}', found 'http'
+```
 
-The Jenkinsfile syntax was corrected and the build subsequently succeeded.
+The issue was caused by a shell `curl` command being outside the correct `sh` block. The Jenkinsfile was corrected and the build succeeded.
 
-The final Jenkins build status was:
-
-SUCCESS
-
-9. Docker Image Registry
-
-The backend image was published to Docker Hub under the username:
-
-gayathrirai
+## Docker Hub
 
 Backend image:
 
+```text
 gayathrirai/todo-app-backend-new:latest
+```
 
-The EC2 instance successfully pulled and ran this image.
+The EC2 instance successfully pulled and ran the image.
 
-10. Monitoring
+## Monitoring
 
-Amazon CloudWatch was configured for infrastructure, application, and database monitoring.
+Amazon CloudWatch monitors infrastructure, application, logs, and RDS.
 
-EC2 Infrastructure Metrics
+### EC2 Metrics
 
-CloudWatch Agent was installed and configured on the EC2 instance.
+The CloudWatch Agent collects:
 
-The following metrics were configured:
-
+```text
 CPU usage
-Memory used percentage
-Disk used percentage
-Swap used percentage
+Memory usage
+Disk usage
+Swap usage
+```
 
-The important metrics used for the dashboard include:
+Important metrics:
 
+```text
 cpu_usage_user
 mem_used_percent
 disk_used_percent
+```
 
-For disk monitoring, the root filesystem / was monitored using:
+Root filesystem monitoring:
 
+```text
 disk_used_percent
+```
 
-The CloudWatch Agent service was verified as running:
+CloudWatch Agent status was verified as:
 
-sudo systemctl status amazon-cloudwatch-agent
-
-The service status was:
-
+```text
 Active: active (running)
+```
 
-11. CloudWatch Dashboards
+The EC2 IAM role provides CloudWatch permissions without storing AWS access keys on the instance.
 
-Two dashboards were prepared for the assignment.
+## CloudWatch Dashboards
 
-Dashboard 1 – TodoApp-Infrastructure
+### Dashboard 1 – TodoApp-Infrastructure
 
-Dashboard:
+Includes:
 
-TodoApp-Infrastructure
+- EC2 CPU
+- Memory usage
+- Disk usage
+- Infrastructure metrics
 
-It contains infrastructure-related monitoring such as:
+### Dashboard 2 – TodoApp-Application-Database
 
-EC2 CPU
+Includes:
 
-Memory usage
+- Application request activity
+- Application errors
+- Application/access logs
+- RDS CPU
+- Database connections
+- RDS storage
 
-Disk usage
+An additional `TodoApp-Application` dashboard was also created during setup.
 
-Other EC2 infrastructure metrics
+These dashboards satisfy the requirement for at least two meaningful dashboards.
 
-Dashboard 2 – TodoApp-Application-Database
+## Centralized Logging
 
-Dashboard:
+CloudWatch Logs collects logs from EC2 and Docker.
 
-TodoApp-Application-Database
+### Log Group
 
-It is intended for:
-
-Application request activity
-
-Application errors
-
-Application/access logs
-
-RDS CPU
-
-Database connections
-
-RDS storage
-
-A third dashboard named TodoApp-Application was also created during the monitoring setup. The two dashboards above are the primary dashboards for the assignment.
-
-This satisfies the requirement:
-
-Create at least two meaningful dashboards.
-
-12. Centralized Logging
-
-CloudWatch Logs was configured to collect logs from the EC2 instance.
-
-A CloudWatch log group was created:
-
+```text
 /todo-app/docker
+```
 
-The CloudWatch Agent was configured to collect Docker container logs from:
+### Docker Logs
 
+```text
 /var/lib/docker/containers/*/*-json.log
+```
 
-System logs were also configured through:
+### System Logs
 
+```text
 /var/log/messages
-
-The EC2 instance uses rsyslog to provide /var/log/messages.
+```
 
 Rsyslog was enabled with:
 
+```bash
 sudo systemctl enable --now rsyslog
+```
 
-A test system message was generated using:
+Test message:
 
+```bash
 logger "TodoApp CloudWatch system logging test"
+```
 
-The message was verified locally in:
+The message was verified locally and collected by CloudWatch.
 
-/var/log/messages
+## Nginx Access Logs
 
-13. Application / Nginx Access Logs
+Nginx writes access logs to Docker stdout.
 
-The frontend runs Nginx in Docker.
+Example:
 
-Nginx access logs are written to Docker's stdout:
-
+```text
 /var/log/nginx/access.log -> /dev/stdout
+```
 
-The Docker logs were verified with:
+Logs were verified using:
 
+```bash
 docker logs --tail 20 todo-frontend
+```
 
-Example access logs included:
+Example requests:
 
+```text
 GET / HTTP/1.1 200
 GET /api/health HTTP/1.1 200
 GET /api/todos HTTP/1.1 200
+```
 
-These logs were successfully delivered to:
+## CloudWatch Logs Insights
 
-/todo-app/docker
+### Recent Logs
 
-CloudWatch Logs Insights was used to query application/access logs.
-
-Example query:
-
+```text
 fields @timestamp, @message
 | sort @timestamp desc
 | limit 20
+```
 
-Application error analysis used:
+### HTTP Error Analysis
 
+```text
 fields @timestamp, @message
 | filter @message like / 5[0-9][0-9] /
 | sort @timestamp desc
 | limit 20
+```
 
-At the time of verification, the observed requests were successful HTTP 200 responses.
+### Request Rate
 
-14. Application Request Monitoring
-
-Application request activity was monitored through the Nginx access logs.
-
-A Logs Insights query was prepared to calculate requests over time:
-
+```text
 fields @timestamp, @message
 | filter @message like /HTTP\/1\.[01]/
 | stats count() as requests by bin(5m)
 | sort @timestamp asc
+```
 
-This provides an application request-rate view that can be displayed as a line chart on the application dashboard.
+Application requests were verified as successful HTTP 200 responses.
 
-15. Database Monitoring
+## RDS Monitoring
 
-The PostgreSQL database is hosted on Amazon RDS.
+Important RDS CloudWatch metrics:
 
-Important RDS CloudWatch metrics include:
-
+```text
 CPUUtilization
 DatabaseConnections
 FreeStorageSpace
@@ -495,311 +597,259 @@ ReadIOPS
 WriteIOPS
 ReadLatency
 WriteLatency
+```
 
-The application/database dashboard was prepared to include important RDS health indicators such as:
+The application/database dashboard includes important database health indicators.
 
-RDS CPU utilization
+## Alerting
 
-Database connections
+CloudWatch alarms and Amazon SNS provide failure notifications.
 
-Free storage
+### SNS Topics
 
-16. Alerting
-
-Amazon SNS was configured for failure notifications.
-
-SNS topic:
-
+```text
 todo-app-alerts
-
-A disk-related SNS topic was also created:
-
 TodoApp-High-Disk
+```
 
-CloudWatch alarms can send notifications through SNS.
+### Alert Flow
 
-The intended alerting flow is:
-
+```text
 CloudWatch Metric
-      |
-      v
+       |
+       v
 CloudWatch Alarm
-      |
-      v
+       |
+       v
 SNS Topic
-      |
-      v
+       |
+       v
 Email Notification
+```
 
-A high-CPU alarm was planned/configured using:
+### High CPU Alarm
 
+```text
 Metric: CPUUtilization
 Statistic: Average
 Period: 5 minutes
 Threshold: > 80%
+```
 
-This satisfies the assignment requirement for failure notification through email.
+This provides email notification when CPU utilization exceeds the configured threshold.
 
-17. Backup Strategy
+## Backup Strategy
 
-Amazon RDS automated backups are enabled for the PostgreSQL database.
+Amazon RDS automated backups are enabled.
 
-The current backup retention period is:
+Current configuration:
 
-1 day
+```text
+Backup Retention: 1 day
+```
 
 This provides point-in-time recovery within the configured retention window.
 
-The assignment requirement allows implementing at least one backup/secret-management strategy, and RDS automated backups provide the implemented backup strategy.
+For production, the retention period can be increased to 7–35 days depending on requirements.
 
-Recommended production improvement:
+## Security
 
-Increase retention to 7–35 days depending on business requirements.
+Security practices implemented:
 
-The current 1-day configuration was retained for this assignment.
+- RDS is not publicly accessible.
+- RDS is placed in private subnets.
+- PostgreSQL traffic is restricted through security groups.
+- ALB accepts public HTTP traffic.
+- EC2 application traffic is restricted to the ALB security group.
+- PostgreSQL uses SSL.
+- `DB_SSLMODE=require` is configured.
+- Database password is supplied through an environment variable.
+- EC2 uses an IAM role for CloudWatch access.
+- AWS access keys are not stored on EC2.
 
-18. Security Considerations
+### Production Recommendations
 
-The implementation follows several security practices:
+Use:
 
-Database is hosted on Amazon RDS rather than directly on the EC2 host.
-
-PostgreSQL uses SSL with:
-
-DB_SSLMODE=require
-
-Database password is supplied through:
-
-${DB_PASSWORD}
-
-rather than being hard-coded in Compose.
-
-Security groups restrict access to required ports.
-
-Database access is separated from public application access.
-
-IAM role is attached to EC2 for CloudWatch Agent access.
-
-CloudWatch Agent uses the EC2 IAM role instead of storing AWS access keys on the instance.
-
-Frontend container mounts application files read-only where applicable.
-
-For a production deployment, secrets could be moved to:
-
+```text
 AWS Secrets Manager
+```
 
-or
+or:
 
+```text
 AWS Systems Manager Parameter Store
+```
 
-19. Cost Optimization
+for database credentials.
 
-Cost optimization considerations include:
+Enable HTTPS using:
 
-Use small EC2 instance types appropriate for the workload.
+```text
+AWS Certificate Manager
+```
 
-Use RDS sizing based on actual requirements.
+## Cost Optimization
 
-Monitor CloudWatch usage to avoid unnecessary high-cardinality metrics.
+- Use small EC2 instance types for development.
+- Size RDS according to workload.
+- Use appropriate CloudWatch log retention.
+- Avoid unnecessary monitoring metrics.
+- Remove unused AWS resources after testing.
+- Use efficient Docker images.
+- Use appropriate RDS backup retention.
+- Scale based on monitoring data.
 
-Use appropriate log retention periods instead of retaining logs indefinitely.
+## Challenges and Resolutions
 
-Remove unused AWS resources after testing.
+### Jenkins Pipeline Syntax
 
-Use Docker images efficiently to reduce storage and transfer costs.
+**Problem:**
 
-Use automated backups with an appropriate retention period.
-
-Scale infrastructure only when monitoring data justifies it.
-
-20. Challenges Faced and Resolutions
-
-Challenge 1 – Jenkins Pipeline Syntax Error
-
-Jenkins initially failed with:
-
+```text
 expecting '}', found 'http'
+```
 
-Cause:
+**Resolution:** Corrected Jenkinsfile shell block structure.
 
-The curl command was placed outside the correct Jenkins sh block / Groovy structure.
+**Result:** Jenkins build succeeded.
 
-Resolution:
-
-The Jenkinsfile syntax was corrected so shell commands were executed inside the appropriate sh block.
-
-Result:
-
-Jenkins build SUCCESS
-
-Challenge 2 – Docker Compose
+### Docker Compose
 
 Docker Compose was initially unavailable.
 
-Resolution:
+**Resolution:** Docker Compose plugin was installed and verified.
 
-The Docker Compose plugin was installed and verified.
+### Database Connectivity
 
-The Compose deployment was then used to run:
+The backend needed to connect to RDS PostgreSQL.
 
-todo-frontend
-todo-backend
+**Resolution:** Database settings were supplied through environment variables and SSL was enabled.
 
-Challenge 3 – Database Connectivity
+Health check confirmed:
 
-The application had to connect from the backend container to PostgreSQL RDS.
-
-Resolution:
-
-Database configuration was passed through environment variables and SSL was enabled:
-
-DB_SSLMODE=require
-
-The health endpoint confirmed:
-
+```json
 {
   "database": "connected",
   "status": "healthy"
 }
+```
 
-Challenge 4 – CloudWatch Agent Configuration
+### CloudWatch Agent
 
-The CloudWatch Agent initially had configuration/credential issues.
+The CloudWatch Agent initially had configuration and permission issues.
 
-Resolution:
+**Resolution:**
 
-EC2 IAM role was verified.
+- Verified EC2 IAM role.
+- Attached `CloudWatchAgentServerPolicy`.
+- Verified IMDSv2 access.
+- Validated agent configuration.
+- Restarted the agent.
 
-CloudWatchAgentServerPolicy was attached.
+Final state:
 
-IMDSv2 token access was verified.
-
-CloudWatch Agent configuration was validated.
-
-The agent was restarted.
-
-Docker logs began appearing in CloudWatch Logs.
-
-Final agent state:
-
+```text
 Active: active (running)
+```
 
-Challenge 5 – Docker Log Permissions
+### Docker Log Permissions
 
-The CloudWatch Agent initially could not directly read Docker's JSON log files as the cwagent user.
+The CloudWatch Agent initially could not read Docker JSON log files.
 
-Resolution:
+**Resolution:** Appropriate permissions were configured and Docker logs were successfully collected.
 
-The agent was run with the appropriate permissions and successfully collected Docker logs.
+### System Logs
 
-CloudWatch confirmed the log stream:
+`/var/log/messages` was initially unavailable.
 
-i-0ed17eb796275ea6f/docker
+**Resolution:** Rsyslog was installed and enabled.
 
-under:
+### ALB Target Health
 
-/todo-app/docker
+The ALB health check uses:
 
-Challenge 6 – System Logs
+```text
+/api/health
+```
 
-/var/log/messages was initially unavailable.
+on port:
 
-Resolution:
+```text
+8080
+```
 
-rsyslog was installed and enabled:
+The EC2 target was verified as:
 
-sudo systemctl enable --now rsyslog
+```text
+healthy
+```
 
-The log file became available:
+## Validation Checklist
 
-/var/log/messages
+### Infrastructure
 
-A test message was generated and verified.
+- [x] Terraform infrastructure provisioned
+- [x] VPC
+- [x] Public subnets
+- [x] Private subnets
+- [x] Internet Gateway
+- [x] NAT Gateway
+- [x] EC2
+- [x] RDS PostgreSQL
+- [x] Security groups
+- [x] Application Load Balancer
+- [x] Target group
+- [x] ALB listener
+- [x] Terraform variables
+- [x] Terraform outputs/state
 
-21. Validation Checklist
+### Application
 
-Infrastructure
+- [x] Frontend running
+- [x] Backend running
+- [x] PostgreSQL connected
+- [x] Health endpoint returns 200
+- [x] Todo API returns 200
+- [x] CRUD endpoints implemented
+- [x] ALB target health verified
 
-Terraform infrastructure provisioned
+### CI/CD
 
-VPC
+- [x] Jenkins configured
+- [x] Jenkins build successful
+- [x] Docker image published
+- [x] Deployment verified
 
-Subnets
+### Monitoring
 
-EC2
+- [x] CPU monitoring
+- [x] Memory monitoring
+- [x] Disk monitoring
+- [x] Docker logs
+- [x] Nginx access logs
+- [x] System logs
+- [x] RDS metrics
+- [x] CloudWatch Dashboard 1
+- [x] CloudWatch Dashboard 2
+- [x] CloudWatch Logs
+- [x] SNS alerting
 
-RDS PostgreSQL
+### Backup and Security
 
-Security groups
+- [x] RDS automated backup
+- [x] 1-day backup retention
+- [x] Database SSL
+- [x] Database password through environment variable
+- [x] EC2 IAM role for CloudWatch
+- [x] RDS not publicly accessible
+- [x] ALB-based application access
 
-Terraform variables
+## Final Result
 
-Terraform outputs/state
+The Todo application was successfully deployed on AWS using a containerized DevOps architecture.
 
-Application
-
-Frontend running
-
-Backend running
-
-PostgreSQL connected
-
-Health endpoint returns 200
-
-Todo API returns 200
-
-CRUD API endpoints implemented
-
-CI/CD
-
-Jenkins configured
-
-Jenkins build successful
-
-Docker image published
-
-Deployment verified
-
-Monitoring
-
-CPU monitoring
-
-Memory monitoring
-
-Disk monitoring
-
-Application/access logs
-
-System logs
-
-RDS metrics
-
-Dashboard 1
-
-Dashboard 2
-
-CloudWatch Logs
-
-SNS alerting
-
-Backup/Security
-
-RDS automated backup
-
-1-day backup retention
-
-Database SSL
-
-Database password supplied through environment variable
-
-EC2 IAM role for CloudWatch
-
-22. Final Result
-
-The Todo application was successfully deployed on AWS using a containerized architecture.
-
-The final validated flow is:
-
+```text
 GitHub
    |
    v
@@ -821,9 +871,11 @@ Frontend                Backend
              |
              v
         PostgreSQL RDS
+```
 
 Monitoring and operations:
 
+```text
 EC2
 Docker
 Application
@@ -843,45 +895,64 @@ CloudWatch
           |
           v
         Email
+```
 
-The implementation demonstrates end-to-end DevOps ownership across infrastructure provisioning, containerization, CI/CD, deployment, monitoring, logging, alerting, security, and backup.
+### Verified ALB
 
-23. Future Improvements
+```text
+todo-app-alb-1415922835.ap-south-1.elb.amazonaws.com
+```
 
-For a production-grade implementation, the following improvements could be added:
+The ALB was successfully created, the EC2 target was healthy, and the TaskFlow frontend returned HTTP 200.
 
-Application Load Balancer instead of direct EC2 port exposure.
+## Future Improvements
 
-Auto Scaling Group for application availability.
+- Auto Scaling Group
+- Multiple application instances
+- ECS/EKS
+- AWS Secrets Manager
+- AWS WAF
+- HTTPS using ACM
+- Multi-AZ RDS
+- Longer backup retention
+- Automated database snapshots
+- Slack/PagerDuty alert integration
+- Container vulnerability scanning
+- Dependency vulnerability scanning
+- Automated unit and integration tests
+- Manual production approval
+- Separate staging and production environments
+- Remote Terraform state using S3 with state locking
+- Application latency monitoring
+- Application error-rate monitoring
+- OpenTelemetry distributed tracing
 
-ECS/EKS for container orchestration.
+## Conclusion
 
-AWS Secrets Manager for database credentials.
+This project demonstrates end-to-end DevOps ownership across:
 
-WAF for web application protection.
+```text
+Infrastructure as Code
+        +
+Containerization
+        +
+CI/CD
+        +
+AWS Deployment
+        +
+Load Balancing
+        +
+Database Management
+        +
+Monitoring
+        +
+Centralized Logging
+        +
+Alerting
+        +
+Security
+        +
+Backup
+```
 
-HTTPS using ACM certificates.
-
-Multi-AZ RDS deployment.
-
-Longer RDS backup retention.
-
-Automated database snapshot policies.
-
-Slack/PagerDuty integration for alerts.
-
-Container vulnerability scanning in Jenkins.
-
-Dependency vulnerability scanning.
-
-Automated unit and integration test stages.
-
-Manual production approval stage.
-
-Separate staging and production environments.
-
-Remote Terraform state using S3 with state locking.
-
-More detailed application metrics such as latency and error rate.
-
-Distributed tracing using OpenTelemetry.
+The final implementation demonstrates a production-oriented AWS DevOps workflow for a containerized Todo application.
