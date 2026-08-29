@@ -1,0 +1,188 @@
+pipeline {
+
+    agent any
+
+    environment {
+        EC2_HOST = "13.126.255.168"
+        EC2_USER = "ec2-user"
+        APP_DIR = "/home/ec2-user/devops-assignment"
+
+        DOCKER_IMAGE = "gayathrirai/todo-app-backend-new"
+    }
+
+    stages {
+
+        stage('Checkout') {
+            steps {
+                echo "======================================"
+                echo "CHECKOUT SOURCE CODE"
+                echo "======================================"
+
+                git branch: 'main',
+                    url: 'https://github.com/GayathriRai/devops-assignment.git'
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo "======================================"
+                echo "RUNNING TESTS"
+                echo "======================================"
+
+                sh '''
+                    test -f app/backend/Dockerfile
+                    test -f app/backend/app.py
+                    test -f app/frontend/index.html
+                    test -f docker-compose.yml
+
+                    echo "Application files verified."
+                '''
+            }
+        }
+
+        stage('Build Docker Image') {
+            steps {
+                echo "======================================"
+                echo "BUILDING DOCKER IMAGE"
+                echo "======================================"
+
+                sh '''
+                    docker build \
+                        -t ${DOCKER_IMAGE}:${BUILD_NUMBER} \
+                        -t ${DOCKER_IMAGE}:latest \
+                        ./app/backend
+
+                    echo "Docker image built successfully."
+                '''
+            }
+        }
+
+        stage('Push to Docker Hub') {
+            steps {
+                echo "======================================"
+                echo "PUSHING IMAGE TO DOCKER HUB"
+                echo "======================================"
+
+                withCredentials([
+                    usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )
+                ]) {
+
+                    sh '''
+                        echo "$DOCKER_PASSWORD" | docker login \
+                            -u "$DOCKER_USERNAME" \
+                            --password-stdin
+
+                        docker push ${DOCKER_IMAGE}:${BUILD_NUMBER}
+                        docker push ${DOCKER_IMAGE}:latest
+
+                        docker logout
+
+                        echo "Docker image pushed successfully."
+                    '''
+                }
+            }
+        }
+
+        stage('Deploy to Application EC2') {
+            steps {
+                echo "======================================"
+                echo "DEPLOYING TO APPLICATION EC2"
+                echo "======================================"
+
+                withCredentials([
+                    sshUserPrivateKey(
+                        credentialsId: 'ec2-ssh-key',
+                        keyFileVariable: 'SSH_KEY',
+                        usernameVariable: 'SSH_USER'
+                    )
+                ]) {
+
+                    sh '''
+                        chmod 600 "$SSH_KEY"
+
+                        ssh -o StrictHostKeyChecking=no \
+                            -i "$SSH_KEY" \
+                            "$SSH_USER@$EC2_HOST" \
+                            "cd $APP_DIR && \
+                             git pull origin main && \
+                             docker compose down && \
+                             docker compose pull && \
+                             docker compose up -d"
+
+                        echo "Application deployed successfully."
+                    '''
+                }
+            }
+        }
+
+        stage('Verify Deployment') {
+            steps {
+                echo "======================================"
+                echo "VERIFYING APPLICATION"
+                echo "======================================"
+
+                sh '''
+                    sleep 15
+
+                    echo "Testing frontend..."
+
+                    curl -f http://${EC2_HOST}:8080/
+
+                    echo ""
+                    echo "Frontend: PASSED"
+
+                    echo ""
+                    echo "Testing backend health..."
+
+                    HEALTH=$(curl -fsS \
+                        http://${EC2_HOST}:8080/api/health)
+
+                    echo "$HEALTH"
+
+                    echo "$HEALTH" | grep '"status":"healthy"'
+                    echo "$HEALTH" | grep '"database":"connected"'
+
+                    echo ""
+                    echo "Backend + Database: PASSED"
+
+                    echo ""
+                    echo "Testing Todo API..."
+
+                    curl -fsS \
+                        http://${EC2_HOST}:8080/api/todos
+
+                    echo ""
+                    echo "Todo API: PASSED"
+
+                    echo ""
+                    echo "======================================"
+                    echo "ALL TESTS PASSED"
+                    echo "======================================"
+                '''
+            }
+        }
+    }
+
+    post {
+
+        success {
+            echo "======================================"
+            echo "CI/CD PIPELINE SUCCESSFUL"
+            echo "======================================"
+            echo "Docker image pushed to Docker Hub."
+            echo "Application deployed to Application EC2."
+            echo "Database connection verified."
+        }
+
+        failure {
+            echo "======================================"
+            echo "CI/CD PIPELINE FAILED"
+            echo "======================================"
+            echo "Check the failed stage."
+        }
+    }
+}
