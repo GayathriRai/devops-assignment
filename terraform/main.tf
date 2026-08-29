@@ -31,14 +31,6 @@ data "aws_ami" "amazon_linux" {
 # ============================================================
 # Existing EC2 Key Pair
 # ============================================================
-# This key pair already exists in AWS.
-# Key pair name: todo-app-ec2-key
-#
-# The private key file is:
-# /home/gayathri/Downloads/awsserver.pem
-#
-# Terraform does NOT upload the private key.
-# It only tells EC2 to use the existing AWS key pair.
 
 data "aws_key_pair" "ec2" {
   key_name = "todo-app-ec2-key"
@@ -320,6 +312,7 @@ resource "aws_security_group" "ec2" {
   description = "Security group for Todo application EC2"
   vpc_id      = aws_vpc.main.id
 
+  # SSH access
   ingress {
     description = "Allow SSH"
     from_port   = 22
@@ -328,12 +321,13 @@ resource "aws_security_group" "ec2" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
+  # Application traffic ONLY from ALB
   ingress {
-    description = "Allow Todo application"
-    from_port   = 8080
-    to_port     = 8080
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
+    description     = "Allow Todo application traffic from ALB"
+    from_port       = 8080
+    to_port         = 8080
+    protocol        = "tcp"
+    security_groups = [aws_security_group.alb.id]
   }
 
   egress {
@@ -417,7 +411,6 @@ resource "aws_instance" "app" {
 
   subnet_id = aws_subnet.public[0].id
 
-  # Use the EXISTING AWS key pair
   key_name = data.aws_key_pair.ec2.key_name
 
   vpc_security_group_ids = [
@@ -445,5 +438,91 @@ resource "aws_instance" "app" {
   tags = {
     Name        = "${var.project_name}-ec2"
     Environment = var.environment
+  }
+}
+
+
+# ============================================================
+# Application Load Balancer
+# ============================================================
+
+resource "aws_lb" "app" {
+  name               = "${var.project_name}-alb"
+  internal           = false
+  load_balancer_type = "application"
+
+  security_groups = [
+    aws_security_group.alb.id
+  ]
+
+  subnets = aws_subnet.public[*].id
+
+  tags = {
+    Name        = "${var.project_name}-alb"
+    Environment = var.environment
+  }
+}
+
+
+# ============================================================
+# ALB Target Group
+# ============================================================
+
+resource "aws_lb_target_group" "app" {
+  name     = "${var.project_name}-tg"
+  port     = 8080
+  protocol = "HTTP"
+
+  vpc_id = aws_vpc.main.id
+
+  health_check {
+    enabled  = true
+    path     = "/api/health"
+    protocol = "HTTP"
+    port     = "8080"
+
+    healthy_threshold   = 2
+    unhealthy_threshold = 3
+
+    timeout  = 5
+    interval = 30
+
+    matcher = "200"
+  }
+
+  tags = {
+    Name        = "${var.project_name}-tg"
+    Environment = var.environment
+  }
+}
+
+
+# ============================================================
+# Register EC2 with Target Group
+# ============================================================
+
+resource "aws_lb_target_group_attachment" "app" {
+  target_group_arn = aws_lb_target_group.app.arn
+
+  target_id = aws_instance.app.id
+
+  port = 8080
+}
+
+
+# ============================================================
+# ALB HTTP Listener
+# ============================================================
+
+resource "aws_lb_listener" "http" {
+  load_balancer_arn = aws_lb.app.arn
+
+  port     = 80
+  protocol = "HTTP"
+
+  default_action {
+    type = "forward"
+
+    target_group_arn = aws_lb_target_group.app.arn
   }
 }
